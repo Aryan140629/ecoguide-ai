@@ -104,4 +104,11 @@ describe('contextBuilder', () => {
     expect(context.length).toBeLessThanOrEqual(15000 + '... [TRUNCATED]'.length);
     expect(context.endsWith('[TRUNCATED]')).toBe(true);
   });
+
+  it('should handle empty recommendations and goals', () => {
+    const context = buildCoachContext(mockProfile, mockFootprint, [], []);
+    expect(context).toContain('No available recommendations found in engine data.');
+    expect(context).toContain('None yet');
+    expect(context).toContain('No active goals set.');
+  });
 });

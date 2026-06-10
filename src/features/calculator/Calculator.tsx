@@ -10,7 +10,10 @@ import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
-import { EmissionChart } from '../../components/charts/EmissionChart';
+import { Suspense, lazy } from 'react';
+const EmissionChart = lazy(() =>
+  import('../../components/charts/EmissionChart').then((m) => ({ default: m.EmissionChart }))
+);
 import { useProfile } from '../../hooks/useProfile';
 import { useEmissions } from '../../hooks/useEmissions';
 
@@ -300,7 +303,9 @@ export function Calculator() {
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">
                   Your Footprint
                 </h3>
-                <EmissionChart footprint={footprint} />
+                <Suspense fallback={<div className="h-64 flex items-center justify-center text-slate-400">Loading chart...</div>}>
+                  <EmissionChart footprint={footprint} />
+                </Suspense>
               </Card>
               <Card>
                 <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-3">

@@ -97,8 +97,8 @@ const ProfileContext = createContext<ProfileContextValue | null>(null);
 
 // ─── Provider ───────────────────────────────────────────────────
 
-export function ProfileProvider({ children }: { children: ReactNode }) {
-  const [profile, dispatch] = useReducer(profileReducer, null, () => loadProfile());
+export function ProfileProvider({ children, initialProfile }: { children: ReactNode, initialProfile?: UserProfile }) {
+  const [profile, dispatch] = useReducer(profileReducer, null, () => initialProfile || loadProfile());
 
   // Persist to localStorage on every profile change
   useEffect(() => {

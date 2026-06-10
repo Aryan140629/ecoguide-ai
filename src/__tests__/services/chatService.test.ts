@@ -95,4 +95,52 @@ describe('Chat Service', () => {
     // It should ignore the invalid JSON and return the valid one
     expect(results).toEqual(['hello']);
   });
+
+  it('should throw an error if no response body is received', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      body: null,
+    });
+
+    try {
+      const gen = sendChatMessage('hello', 'context', []);
+      await gen.next();
+      expect.unreachable();
+    } catch (err: unknown) {
+      expect((err as Error).message).toBe('No response body received');
+    }
+  });
+
+  it('should throw an error if SSE chunk contains an error field', async () => {
+    const mockChunks = [
+      'data: {"error":"Stream error occurred"}\n\n'
+    ];
+    let chunkIndex = 0;
+
+    const mockReader = {
+      read: vi.fn().mockImplementation(() => {
+        if (chunkIndex < mockChunks.length) {
+          const value = new TextEncoder().encode(mockChunks[chunkIndex++]);
+          return Promise.resolve({ done: false, value });
+        }
+        return Promise.resolve({ done: true });
+      }),
+      releaseLock: vi.fn(),
+    };
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      body: {
+        getReader: () => mockReader,
+      },
+    });
+
+    try {
+      const gen = sendChatMessage('hello', 'context', []);
+      await gen.next();
+      expect.unreachable();
+    } catch (err: unknown) {
+      expect((err as Error).message).toBe('Stream error occurred');
+    }
+  });
 });

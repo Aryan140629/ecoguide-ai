@@ -59,18 +59,19 @@ export async function* sendChatMessage(
           if (dataStr === '[DONE]') {
             return;
           }
+          let data;
           try {
-            const data = JSON.parse(dataStr);
-            if (data.error) {
-              throw new Error(data.error);
-            }
-            if (data.text) {
-              yield data.text;
-            }
+            data = JSON.parse(dataStr);
           } catch {
-            // If it's a parsing error for a partial chunk, we might want to log it,
-            // but typical SSE chunks from our server will be full JSON objects.
             console.warn('Failed to parse SSE chunk:', dataStr);
+            continue;
+          }
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+          if (data.text) {
+            yield data.text;
           }
         }
       }

@@ -98,53 +98,30 @@ function applyChanges(
   return modified;
 }
 
-function applyTransportChange(data: TransportData, change: ScenarioChange): TransportData {
-  switch (change.field) {
-    case 'addMode': {
-      const newMode = change.newValue as TransportMode;
-      const existingModes = data.entries.map((e) => e.mode);
-      if (existingModes.includes(newMode)) return data;
-      return {
-        ...data,
-        entries: [...data.entries, { mode: newMode, distanceKmPerWeek: 0 }],
-      };
-    }
-    case 'removeMode': {
-      const modeToRemove = change.newValue as TransportMode;
-      return {
-        ...data,
-        entries: data.entries.filter((e) => e.mode !== modeToRemove),
-      };
-    }
-    case 'reduceCarDistance': {
-      const reductionPercent = Number(change.newValue) / 100;
-      return {
-        ...data,
-        entries: data.entries.map((e) => {
-          if (
-            e.mode === 'car_gasoline' ||
-            e.mode === 'car_diesel' ||
-            e.mode === 'car_hybrid'
-          ) {
-            return {
-              ...e,
-              distanceKmPerWeek: Math.max(0, e.distanceKmPerWeek * (1 - reductionPercent)),
-            };
-          }
-          return e;
-        }),
-      };
-    }
-    case 'bikeDaysPerWeek': {
-      const bikeDays = Number(change.newValue);
-      // Assume average commute distance of 10km, reduce car usage accordingly
-      const bikeKmPerWeek = bikeDays * 10;
-      const hasCarEntry = data.entries.some(
-        (e) => e.mode === 'car_gasoline' || e.mode === 'car_diesel' || e.mode === 'car_hybrid'
-      );
-      const hasBikeEntry = data.entries.some((e) => e.mode === 'bicycle');
+type TransportStrategy = (data: TransportData, value: string | number | boolean) => TransportData;
 
-      let entries = data.entries.map((e) => {
+const transportStrategies: Record<string, TransportStrategy> = {
+  addMode: (data, value) => {
+    const newMode = value as TransportMode;
+    const existingModes = data.entries.map((e) => e.mode);
+    if (existingModes.includes(newMode)) return data;
+    return {
+      ...data,
+      entries: [...data.entries, { mode: newMode, distanceKmPerWeek: 0 }],
+    };
+  },
+  removeMode: (data, value) => {
+    const modeToRemove = value as TransportMode;
+    return {
+      ...data,
+      entries: data.entries.filter((e) => e.mode !== modeToRemove),
+    };
+  },
+  reduceCarDistance: (data, value) => {
+    const reductionPercent = Number(value) / 100;
+    return {
+      ...data,
+      entries: data.entries.map((e) => {
         if (
           e.mode === 'car_gasoline' ||
           e.mode === 'car_diesel' ||
@@ -152,59 +129,81 @@ function applyTransportChange(data: TransportData, change: ScenarioChange): Tran
         ) {
           return {
             ...e,
-            distanceKmPerWeek: Math.max(0, e.distanceKmPerWeek - bikeKmPerWeek),
+            distanceKmPerWeek: Math.max(0, e.distanceKmPerWeek * (1 - reductionPercent)),
           };
         }
         return e;
-      });
+      }),
+    };
+  },
+  bikeDaysPerWeek: (data, value) => {
+    const bikeDays = Number(value);
+    // Assume average commute distance of 10km, reduce car usage accordingly
+    const bikeKmPerWeek = bikeDays * 10;
+    const hasCarEntry = data.entries.some(
+      (e) => e.mode === 'car_gasoline' || e.mode === 'car_diesel' || e.mode === 'car_hybrid'
+    );
+    const hasBikeEntry = data.entries.some((e) => e.mode === 'bicycle');
 
-      if (!hasBikeEntry && hasCarEntry) {
-        entries = [...entries, { mode: 'bicycle' as TransportMode, distanceKmPerWeek: bikeKmPerWeek }];
+    let entries = data.entries.map((e) => {
+      if (
+        e.mode === 'car_gasoline' ||
+        e.mode === 'car_diesel' ||
+        e.mode === 'car_hybrid'
+      ) {
+        return {
+          ...e,
+          distanceKmPerWeek: Math.max(0, e.distanceKmPerWeek - bikeKmPerWeek),
+        };
       }
+      return e;
+    });
 
-      return { ...data, entries };
+    if (!hasBikeEntry && hasCarEntry) {
+      entries = [...entries, { mode: 'bicycle' as TransportMode, distanceKmPerWeek: bikeKmPerWeek }];
     }
-    case 'ownsEV':
-      return { ...data, ownsEV: Boolean(change.newValue) };
-    default:
-      return data;
-  }
+
+    return { ...data, entries };
+  },
+  ownsEV: (data, value) => ({ ...data, ownsEV: Boolean(value) }),
+};
+
+function applyTransportChange(data: TransportData, change: ScenarioChange): TransportData {
+  const strategy = transportStrategies[change.field];
+  return strategy ? strategy(data, change.newValue) : data;
 }
+
+type ElectricityStrategy = (data: ElectricityData, value: string | number | boolean) => ElectricityData;
+
+const electricityStrategies: Record<string, ElectricityStrategy> = {
+  monthlyKwh: (data, value) => ({ ...data, monthlyKwh: Math.max(0, Number(value)) }),
+  reducePercent: (data, value) => {
+    const reduction = Number(value) / 100;
+    return { ...data, monthlyKwh: Math.max(0, data.monthlyKwh * (1 - reduction)) };
+  },
+  energySource: (data, value) => ({ ...data, energySource: value as EnergySource }),
+  usesLEDs: (data, value) => ({ ...data, usesLEDs: Boolean(value) }),
+  hasSmartThermostat: (data, value) => ({ ...data, hasSmartThermostat: Boolean(value) }),
+};
 
 function applyElectricityChange(data: ElectricityData, change: ScenarioChange): ElectricityData {
-  switch (change.field) {
-    case 'monthlyKwh':
-      return { ...data, monthlyKwh: Math.max(0, Number(change.newValue)) };
-    case 'reducePercent': {
-      const reduction = Number(change.newValue) / 100;
-      return { ...data, monthlyKwh: Math.max(0, data.monthlyKwh * (1 - reduction)) };
-    }
-    case 'energySource':
-      return { ...data, energySource: change.newValue as EnergySource };
-    case 'usesLEDs':
-      return { ...data, usesLEDs: Boolean(change.newValue) };
-    case 'hasSmartThermostat':
-      return { ...data, hasSmartThermostat: Boolean(change.newValue) };
-    default:
-      return data;
-  }
+  const strategy = electricityStrategies[change.field];
+  return strategy ? strategy(data, change.newValue) : data;
 }
 
+type FoodStrategy = (data: FoodData, value: string | number | boolean) => FoodData;
+
+const foodStrategies: Record<string, FoodStrategy> = {
+  dietType: (data, value) => ({ ...data, dietType: value as DietType }),
+  redMeatMealsPerWeek: (data, value) => ({ ...data, redMeatMealsPerWeek: Math.max(0, Number(value)) }),
+  poultryFishMealsPerWeek: (data, value) => ({ ...data, poultryFishMealsPerWeek: Math.max(0, Number(value)) }),
+  prefersLocalFood: (data, value) => ({ ...data, prefersLocalFood: Boolean(value) }),
+  foodWasteLevel: (data, value) => ({ ...data, foodWasteLevel: value as 'low' | 'medium' | 'high' }),
+};
+
 function applyFoodChange(data: FoodData, change: ScenarioChange): FoodData {
-  switch (change.field) {
-    case 'dietType':
-      return { ...data, dietType: change.newValue as DietType };
-    case 'redMeatMealsPerWeek':
-      return { ...data, redMeatMealsPerWeek: Math.max(0, Number(change.newValue)) };
-    case 'poultryFishMealsPerWeek':
-      return { ...data, poultryFishMealsPerWeek: Math.max(0, Number(change.newValue)) };
-    case 'prefersLocalFood':
-      return { ...data, prefersLocalFood: Boolean(change.newValue) };
-    case 'foodWasteLevel':
-      return { ...data, foodWasteLevel: change.newValue as 'low' | 'medium' | 'high' };
-    default:
-      return data;
-  }
+  const strategy = foodStrategies[change.field];
+  return strategy ? strategy(data, change.newValue) : data;
 }
 
 // ─── Preset Scenarios ───────────────────────────────────────────

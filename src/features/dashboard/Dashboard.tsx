@@ -5,13 +5,18 @@
  * monthly trend, top recommendations, and recent badges.
  */
 
-import { useMemo } from 'react';
+import { useMemo, lazy, Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { BadgeDisplay } from '../../components/ui/BadgeDisplay';
-import { EmissionChart } from '../../components/charts/EmissionChart';
-import { TrendChart } from '../../components/charts/TrendChart';
+
+const EmissionChart = lazy(() =>
+  import('../../components/charts/EmissionChart').then((m) => ({ default: m.EmissionChart }))
+);
+const TrendChart = lazy(() =>
+  import('../../components/charts/TrendChart').then((m) => ({ default: m.TrendChart }))
+);
 import { useProfile } from '../../hooks/useProfile';
 import { useEmissions } from '../../hooks/useEmissions';
 import { evaluateBadges, getEarnedBadges } from '../../engine/badges';
@@ -115,14 +120,18 @@ export function Dashboard() {
           <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">
             Emission Breakdown
           </h3>
-          <EmissionChart footprint={footprint} />
+          <Suspense fallback={<div className="h-64 flex items-center justify-center text-slate-400">Loading chart...</div>}>
+            <EmissionChart footprint={footprint} />
+          </Suspense>
         </Card>
 
         <Card>
           <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">
             Monthly Trend
           </h3>
-          <TrendChart history={history} />
+          <Suspense fallback={<div className="h-64 flex items-center justify-center text-slate-400">Loading chart...</div>}>
+            <TrendChart history={history} />
+          </Suspense>
         </Card>
       </div>
 

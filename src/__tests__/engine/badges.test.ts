@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { evaluateBadges } from '../../engine/badges';
+import { evaluateBadges, countBadgesByTier } from '../../engine/badges';
 import type { UserProfile } from '../../types/carbon';
 
 describe('Badges Engine', () => {
@@ -113,5 +113,72 @@ describe('Badges Engine', () => {
     };
     const unlocked = evaluateBadges(profile as UserProfile, null, []).map((b) => b.id);
     expect(unlocked).toContain('ev-pioneer');
+  });
+
+  it('should unlock Below Average, Half & Half, and Climate Champion based on footprint', () => {
+    const profile = { onboardingCompleted: true, adoptedRecommendations: [], transport: { entries: [] }, electricity: {}, food: {} } as unknown as UserProfile;
+    
+    // NATIONAL_AVERAGE_KG_CO2 is likely around 15000, let's use small numbers
+    const footprintBelow = { totalAnnualKgCO2: 10000 } as never;
+    expect(evaluateBadges(profile, footprintBelow, []).map((b) => b.id)).toContain('below-average');
+
+    const footprintHalf = { totalAnnualKgCO2: 5000 } as never;
+    expect(evaluateBadges(profile, footprintHalf, []).map((b) => b.id)).toContain('half-footprint');
+
+    const footprintQuarter = { totalAnnualKgCO2: 2000 } as never;
+    expect(evaluateBadges(profile, footprintQuarter, []).map((b) => b.id)).toContain('climate-champion');
+  });
+
+  it('should unlock LED Hero and Smart Home', () => {
+    const profile = {
+      onboardingCompleted: true,
+      adoptedRecommendations: [],
+      transport: { entries: [] },
+      electricity: { usesLEDs: true, hasSmartThermostat: true, energySource: 'grid_mixed' },
+      food: {}
+    } as unknown as UserProfile;
+    const unlocked = evaluateBadges(profile, null, []).map((b) => b.id);
+    expect(unlocked).toContain('led-hero');
+    expect(unlocked).toContain('smart-home');
+  });
+
+  it('should unlock Local Champion', () => {
+    const profile = {
+      onboardingCompleted: true,
+      adoptedRecommendations: [],
+      transport: { entries: [] },
+      electricity: { energySource: 'grid_mixed' },
+      food: { prefersLocalFood: true }
+    } as unknown as UserProfile;
+    const unlocked = evaluateBadges(profile, null, []).map((b) => b.id);
+    expect(unlocked).toContain('local-champion');
+  });
+
+  it('should unlock Sustainability Master', () => {
+    const profile = {
+      onboardingCompleted: true,
+      adoptedRecommendations: Array.from({ length: 12 }, (_, i) => String(i)),
+      transport: { entries: [] },
+      electricity: { energySource: 'grid_mixed' },
+      food: {}
+    } as unknown as UserProfile;
+    const footprintBelow = { totalAnnualKgCO2: 1000 } as never;
+    const unlocked = evaluateBadges(profile, footprintBelow, []).map((b) => b.id);
+    expect(unlocked).toContain('sustainability-master');
+  });
+
+  it('should count badges by tier correctly', () => {
+    const mockBadges = [
+      { id: '1', tier: 'bronze', earnedAt: '2024' },
+      { id: '2', tier: 'bronze', earnedAt: '2024' },
+      { id: '3', tier: 'silver', earnedAt: '2024' },
+      { id: '4', tier: 'gold', earnedAt: null }, // not earned
+      { id: '5', tier: 'platinum', earnedAt: '2024' }
+    ] as never;
+    const counts = countBadgesByTier(mockBadges);
+    expect(counts.bronze).toBe(2);
+    expect(counts.silver).toBe(1);
+    expect(counts.gold).toBe(0);
+    expect(counts.platinum).toBe(1);
   });
 });
