@@ -1,11 +1,12 @@
 import express, { Request, Response } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
+import path from 'path';
 import { GoogleGenAI } from '@google/genai';
 
 const app = express();
 
-// ✅ FIX: Render-compatible port binding
+// ✅ Render-safe port
 const PORT = process.env.PORT || 3001;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -20,7 +21,7 @@ const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 // Middleware
 app.use(helmet());
 
-// ✅ FIX: safer CORS handling for production
+// ✅ CORS
 const ALLOWED_ORIGIN =
   process.env.NODE_ENV === 'production'
     ? process.env.FRONTEND_URL
@@ -29,7 +30,22 @@ const ALLOWED_ORIGIN =
 app.use(cors({ origin: ALLOWED_ORIGIN }));
 app.use(express.json({ limit: '100kb' }));
 
-// In-memory rate limiter
+// ===============================
+// 🚀 SERVE FRONTEND (FIX FOR "Cannot GET /")
+// ===============================
+app.use(express.static(path.join(process.cwd(), 'dist')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
+});
+
+app.get('*', (req, res) => {
+  res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
+});
+
+// ===============================
+// RATE LIMITER
+// ===============================
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
 
 setInterval(() => {
@@ -68,6 +84,9 @@ function rateLimit(req: Request, res: Response, next: () => void) {
   next();
 }
 
+// ===============================
+// CHAT API (SSE STREAMING)
+// ===============================
 app.post('/api/chat', rateLimit, async (req: Request, res: Response) => {
   try {
     const { message, context, history } = req.body as {
@@ -76,7 +95,6 @@ app.post('/api/chat', rateLimit, async (req: Request, res: Response) => {
       history?: unknown;
     };
 
-    // Validation
     if (!message || typeof message !== 'string' || message.length > 5000) {
       return res.status(400).json({ error: 'Invalid message' });
     }
@@ -89,7 +107,6 @@ app.post('/api/chat', rateLimit, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid history' });
     }
 
-    // SSE headers
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
@@ -118,9 +135,7 @@ app.post('/api/chat', rateLimit, async (req: Request, res: Response) => {
 
     for await (const chunk of responseStream) {
       if (chunk.text) {
-        res.write(
-          `data: ${JSON.stringify({ text: chunk.text })}\n\n`
-        );
+        res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
       }
     }
 
@@ -143,7 +158,9 @@ app.post('/api/chat', rateLimit, async (req: Request, res: Response) => {
   }
 });
 
-// ✅ FIX: Render-safe listen
+// ===============================
+// START SERVER
+// ===============================
 app.listen(PORT, () => {
   console.log(`🤖 EcoGuide AI server running on port ${PORT}`);
 });
