@@ -8,8 +8,9 @@
     "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "server": "tsx watch server/server.ts",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "tsx server/server.ts",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
