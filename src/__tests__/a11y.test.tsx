@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { render } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, act } from '@testing-library/react';
 import * as matchers from 'vitest-axe/matchers';
 import { axe } from 'vitest-axe';
 import { MemoryRouter } from 'react-router-dom';
@@ -23,6 +23,20 @@ const mockProfile: UserProfile = {
 };
 
 describe('Accessibility tests', () => {
+  beforeEach(() => {
+    const originalError = console.error;
+    vi.spyOn(console, 'error').mockImplementation((...args) => {
+      if (typeof args[0] === 'string' && args[0].includes('suspended resource')) {
+        return;
+      }
+      originalError(...args);
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   const TestWrapper = ({ children }: { children: React.ReactNode }) => (
     <MemoryRouter>
       <ProfileProvider initialProfile={mockProfile}>
@@ -39,6 +53,9 @@ describe('Accessibility tests', () => {
         <Dashboard />
       </TestWrapper>
     );
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
     const results = await axe(container);
     // @ts-expect-error vitest-axe typing is incomplete
     expect(results).toHaveNoViolations();
@@ -50,6 +67,9 @@ describe('Accessibility tests', () => {
         <Calculator />
       </TestWrapper>
     );
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
     const results = await axe(container);
     // @ts-expect-error vitest-axe typing is incomplete
     expect(results).toHaveNoViolations();

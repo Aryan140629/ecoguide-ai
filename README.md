@@ -1,70 +1,109 @@
 # EcoGuide AI
 
-EcoGuide AI is a personal carbon footprint tracker and sustainability coach powered by Gemini AI. It helps users calculate their environmental impact, simulate hypothetical lifestyle changes, set reduction goals, and get personalized advice—all within a modern, accessible, and privacy-first web application.
+EcoGuide AI is an intelligent, full-stack application designed to help users track, understand, and reduce their carbon footprint. Powered by a responsive React frontend and a robust Node.js backend integrated with the Google Gemini API, EcoGuide AI delivers personalized, real-time insights and a conversational AI coach.
 
-## Features
+---
 
-- **Personalized Carbon Calculator**: Accurately calculates your CO₂ emissions based on EPA and IPCC emission factors across transportation, electricity, and food.
-- **AI Sustainability Coach**: A smart chat assistant powered by Gemini. The coach understands your profile, goals, and history, but never hallucinates emissions data (the deterministic engine is the single source of truth).
-- **Scenario Simulator**: An interactive "what-if" engine. Drag sliders to see the exact impact of driving less, switching to renewables, or eating less red meat.
-- **Goal Tracking & Gamification**: Set customized reduction targets, earn achievements and badges (e.g., "EV Pioneer", "Zero Waste Hero"), and track progress over time.
-- **Privacy-First Architecture**: All personal data, profiles, and histories are securely stored locally on your device (`localStorage`). The only data sent out is the anonymized context sent to the AI API.
-- **Accessible & Responsive**: Built with screen-reader support (`aria-live`), high-contrast colors, and a fully mobile-responsive Tailwind UI.
+## 🎯 Problem Statement Alignment
 
-## Tech Stack
+This project tackles the urgent need for accessible environmental education by offering actionable, data-driven climate advice. Instead of generic suggestions, the AI Carbon Coach uses the user's specific emissions data to formulate realistic impact reduction goals. 
 
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, React Router, Recharts
-- **Backend (AI Proxy)**: Express, Node.js, `@google/genai` (Gemini SDK)
-- **Testing**: Vitest, React Testing Library (>85% coverage)
-- **Quality**: ESLint, Prettier, TypeScript strict mode
+The architecture is carefully structured to separate concerns, optimize efficiency, ensure top-tier security (such as strict rate limiting, input validation, and zero API key leakage), and provide deep test coverage, making it a highly reliable and maintainable production system.
 
-## Getting Started
+---
+
+## ✨ Features
+
+* **Personalized AI Carbon Coach:** An interactive chat interface powered by Gemini 2.5 Flash, leveraging Server-Sent Events (SSE) for seamless, real-time streaming.
+* **Real-time Input Validation:** Strict payload checking using Zod to ensure safe interactions.
+* **Security & Rate Limiting:** Hardened IP-based rate limiting to prevent abuse, coupled with robust, sanitized error handling.
+* **Modular Backend Architecture:** Clear separation of Routes, Controllers, Services, and Middleware.
+* **Comprehensive Testing:** Frontend coverage via Vitest and React Testing Library, alongside deep backend API coverage using Supertest.
+
+---
+
+## 🏗️ System Architecture
+
+The application implements a clear Client-Server architecture:
+
+```text
++-----------------------+           +-------------------------+           +-----------------------+
+|       Frontend        |           |         Backend         |           |    External APIs      |
+|  (React + Vite + TS)  |   POST    |    (Node + Express)     |  HTTPS    |                       |
+|                       | --------> |   - Routes              | --------> |                       |
+| - UI Components       |   SSE     |   - Controllers         |  Stream   |  Google Gemini API    |
+| - State Management    | <-------- |   - Services (Gemini)   | <-------- |                       |
+| - Context Builders    |           |   - Middleware (Zod)    |           |                       |
++-----------------------+           +-------------------------+           +-----------------------+
+```
+
+### Flow: Frontend → Backend → Gemini API
+1. **User Action**: The user submits a chat message in the React UI (`AIChatPanel`).
+2. **Context Assembly**: The frontend gathers the user's emissions profile and historical chat context.
+3. **API Request**: A POST request is sent to `/api/chat`.
+4. **Validation & Security**: The backend validates the payload structure (Zod) and enforces rate limits.
+5. **AI Processing**: The `GeminiService` constructs the prompt and interfaces with the Google Gemini API.
+6. **Streaming Response**: The response is streamed back to the client in real-time via Server-Sent Events (SSE), enabling a snappy, interactive UI.
+
+---
+
+## 💻 Tech Stack
+
+* **Frontend**: React 19, TypeScript, Vite, Tailwind CSS, Recharts
+* **Backend**: Node.js, Express, TypeScript, Zod
+* **AI Integration**: `@google/genai` (Gemini 2.5 Flash)
+* **Testing**: Vitest, React Testing Library, Supertest
+
+---
+
+## 🚀 Setup & Installation
 
 ### Prerequisites
-- Node.js (v18 or higher)
-- A Gemini API Key (`GEMINI_API_KEY`)
+* Node.js v20+
+* A valid Google Gemini API Key.
 
-### Installation
-
-1. **Clone the repository**
-2. **Install dependencies**:
-   ```bash
-   npm install
-   ```
-3. **Set up environment variables**:
-   Create a `.env` file in the `server` directory and add your API key:
-   ```env
-   GEMINI_API_KEY=your_api_key_here
-   PORT=3000
-   ```
-4. **Start the backend and frontend concurrently**:
-   ```bash
-   npm run dev
-   # In a separate terminal
-   npm run server
-   ```
-5. **Open** `http://localhost:5173` in your browser.
-
-## Demo Mode
-
-For Hackathon judging or quick evaluations, you can instantly populate the app with realistic data (profile, goals, 6-month historical trend, and badges). 
-- Simply **Double-click the leaf icon (🌿)** in the top-left corner next to the EcoGuide AI logo.
-
-## Architecture
-
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for a deep dive into the deterministic carbon engine, the AI integration strategy, and security choices.
-
-## Testing & Quality
-
-Run the test suite with coverage:
+### 1. Clone the Repository
 ```bash
-npm run test:coverage
+git clone <repository_url>
+cd ecoguide-ai
 ```
-*Current test coverage is over 85% with 90+ passing tests.*
 
-## Security Features
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-- Strict input validation on all backend endpoints.
-- Rate limiting and garbage collection for API abuse prevention.
-- Helmet security headers and strict CORS configuration.
-- Markdown XSS sanitization in AI chat rendering.
+### 3. Environment Variables
+Create a `.env` file in the root directory:
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+PORT=3001
+NODE_ENV=development
+```
+
+### 4. Run the Application
+Start both the frontend and backend concurrently:
+```bash
+npm run dev:all
+```
+The frontend will be available at `http://localhost:5173`.
+
+---
+
+## 🧪 Testing
+
+The project uses a unified Vitest workspace to seamlessly run both frontend and backend tests.
+
+To run the entire test suite:
+```bash
+npm run test
+```
+
+* **Frontend tests** (`jsdom` environment) assert component rendering, user interactions, and state updates.
+* **Backend tests** (`node` environment + `supertest`) validate API routing, rate limits, Zod schema validation, and mocked AI stream handling.
+
+---
+
+## 🌐 Deployment
+
+*(Insert deployment link here when live)*

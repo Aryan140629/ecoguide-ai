@@ -62,6 +62,7 @@ describe('Chat Service', () => {
   });
 
   it('should handle SSE parse errors gracefully without failing the stream', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
     const mockChunks = [
       'data: invalid_json\n\n',
       'data: {"text":"hello"}\n\ndata: [DONE]\n\n'
